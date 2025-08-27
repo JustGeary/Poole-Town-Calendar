@@ -19,15 +19,15 @@ TEAM_NAME    = "Poole Town FC Wessex U18 Colts"
 OUTPUT       = "poole_town_u18_colts_fixtures.ics"
 STATE        = ".state_poole_u18.json"  # stores per-UID seq + fingerprint
 
-# Handy links (TinyURL versions)
+# Handy links (TinyURL versions, shortened labels)
 LINKS = [
-    "PTYFC Results/Fixtures: https://tinyurl.com/3rcea6d6",
+    "PTYFC Res/Fix: https://tinyurl.com/3rcea6d6",
     "League Table: https://tinyurl.com/2p3zzska",
     "League Fixtures: https://tinyurl.com/bdhdmzcn",
     "League Results: https://tinyurl.com/bs6ppntx",
 ]
 
-# Event duration: keep fixed at 2 hours (KO + HT + buffer)
+# Event duration: fixed at 2 hours
 EVENT_DURATION = timedelta(hours=2)
 
 # --- UTILITIES ----------------------------------------------------------------
@@ -51,9 +51,6 @@ def clean_team(s: str) -> str:
     s = re.sub(r"\s+", " ", s).strip()
     return s
 
-def norm(s: str) -> str:
-    return re.sub(r"\s+", " ", (s or "").strip()).lower()
-
 def fetch_json(url: str):
     req = Request(url, headers={"User-Agent": "PooleTownCalendar/1.0"})
     with urlopen(req) as r:
@@ -64,10 +61,7 @@ def fetch_json(url: str):
 
 # --- DATE/TIME ----------------------------------------------------------------
 def parse_fixture_dt_local_to_utc(local_dt_str: str) -> datetime:
-    """
-    Convert FullTime 'fixtureDateTime' like '07/09/25 14:00' (dd/MM/yy HH:mm) or 'dd/MM/YYYY HH:mm'
-    from Europe/London to UTC.
-    """
+    """Convert FullTime 'fixtureDateTime' like '07/09/25 14:00' from Europe/London to UTC."""
     if not local_dt_str:
         raise ValueError("fixtureDateTime missing")
     for fmt in ("%d/%m/%y %H:%M", "%d/%m/%Y %H:%M"):
@@ -80,10 +74,7 @@ def parse_fixture_dt_local_to_utc(local_dt_str: str) -> datetime:
     raise ValueError(f"Could not parse fixtureDateTime '{local_dt_str}'")
 
 def key_from_date_and_teams(date_str: str, home: str, away: str) -> str:
-    """
-    Create a canonical key for fixture<->result matching using local date (no TZ)
-    and team names. Accepts 'dd/MM/yy[ HH:MM]' or 'dd/MM/YYYY[ HH:MM]'.
-    """
+    """Key for fixture<->result matching."""
     patterns = ("%d/%m/%y %H:%M", "%d/%m/%Y %H:%M", "%d/%m/%y", "%d/%m/%Y")
     for fmt in patterns:
         try:
@@ -91,7 +82,6 @@ def key_from_date_and_teams(date_str: str, home: str, away: str) -> str:
             return f"{d.strftime('%Y%m%d')}|{clean_team(home)}|{clean_team(away)}"
         except Exception:
             pass
-    # As a last resort, return raw-ish key
     return f"{date_str}|{clean_team(home)}|{clean_team(away)}"
 
 # --- STATE --------------------------------------------------------------------
@@ -119,41 +109,23 @@ def main():
     results  = fetch_json(RESULTS_URL)
 
     log(f"[INFO] Fixtures: {len(fixtures)}")
-    if fixtures:
-        log("[INFO] First fixture sample:\n" + json.dumps(fixtures[0], indent=2, ensure_ascii=False))
     log(f"[INFO] Results: {len(results)}")
-    if results:
-        log("[INFO] First result sample:\n" + json.dumps(results[0], indent=2, ensure_ascii=False))
 
     # Build result lookup
     res_map = {}
-    scored_count = 0
     for r in results:
-        # Results payload fields (defensive): date might be 'resultDateTime' or reuse 'fixtureDateTime' or 'date'
         date_str = r.get("resultDateTime") or r.get("fixtureDateTime") or r.get("date") or ""
         home     = r.get("homeTeam") or r.get("home") or ""
         away     = r.get("awayTeam") or r.get("away") or ""
-        hs       = r.get("homeScore") or r.get("homeGoals") or r.get("home_score") or r.get("homeResult")
-        as_      = r.get("awayScore") or r.get("awayGoals") or r.get("away_score") or r.get("awayResult")
-        comp     = r.get("competition") or ""
-        venue    = r.get("location") or r.get("ground") or ""
-
+        hs       = r.get("homeScore") or r.get("homeGoals")
+        as_      = r.get("awayScore") or r.get("awayGoals")
         key = key_from_date_and_teams(date_str, home, away)
-        res_map[key] = {"hs": hs, "as": as_, "competition": comp, "location": venue}
-        if hs is not None and as_ is not None:
-            scored_count += 1
-    log(f"[INFO] Result entries with scores: {scored_count}")
+        res_map[key] = {"hs": hs, "as": as_}
 
     # Sort fixtures by kickoff UTC
-    def safe_key(fx):
-        try:
-            return parse_fixture_dt_local_to_utc(fx.get("fixtureDateTime") or fx.get("date") or "")
-        except Exception:
-            return datetime.max.replace(tzinfo=timezone.utc)
+    fixtures.sort(key=lambda fx: parse_fixture_dt_local_to_utc(fx.get("fixtureDateTime") or fx.get("date") or ""))
 
-    fixtures.sort(key=safe_key)
     state = load_state()
-
     lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
@@ -162,14 +134,18 @@ def main():
         "METHOD:PUBLISH",
     ]
 
+    # Add links once at calendar header as X-properties
+    for link in LINKS:
+        label, url = link.split(":", 1)
+        lines.append(f"X-{label.strip().upper().replace(' ','-')}:{url.strip()}")
+
     built = 0
     for fx in fixtures:
         try:
-            # Fixture fields (as per your sample)
             f_date_local = fx.get("fixtureDateTime") or fx.get("date") or ""
             home = (fx.get("homeTeam") or "").strip()
             away = (fx.get("awayTeam") or "").strip()
-            venue = (fx.get("location") or fx.get("ground") or "").strip()
+            venue = (fx.get("location") or "").strip()
             comp  = (fx.get("competition") or "").strip()
 
             start_utc = parse_fixture_dt_local_to_utc(f_date_local)
@@ -178,18 +154,14 @@ def main():
             us_home   = TEAM_NAME.lower() in home.lower()
             opponent  = away if us_home else home
 
-            # Find matching result (same local date string & teams)
+            # Match result
             rkey = key_from_date_and_teams(f_date_local, home, away)
             res  = res_map.get(rkey)
 
-            # SUMMARY (inject score if present)
+            # SUMMARY
             if res and (res.get("hs") is not None and res.get("as") is not None):
-                hs = str(res["hs"]).strip()
-                as_ = str(res["as"]).strip()
-                if us_home:
-                    summary = f"{TEAM_NAME} {hs}–{as_} {opponent}"
-                else:
-                    summary = f"{opponent} {hs}–{as_} {TEAM_NAME}"
+                hs, as_ = str(res["hs"]).strip(), str(res["as"]).strip()
+                summary = f"{TEAM_NAME} {hs}–{as_} {opponent}" if us_home else f"{opponent} {hs}–{as_} {TEAM_NAME}"
             else:
                 summary = f"{TEAM_NAME} vs {opponent}" if us_home else f"{opponent} vs {TEAM_NAME}"
 
@@ -199,21 +171,17 @@ def main():
             if venue: desc_bits.append(f"Venue: {venue}")
             if res and (res.get("hs") is not None and res.get("as") is not None):
                 desc_bits.append(f"Result: {home} {res['hs']}–{res['as']} {away}")
-            # Always append your helpful links
-            desc_bits.extend(LINKS)
+            desc_bits.extend(LINKS)  # links in every event
             description = "\\n".join(esc(x) for x in desc_bits)
 
-            # SEQUENCE bump if fixture+result composite changed
-            fingerprint = hashlib.sha256(
-                json.dumps({"fx": fx, "res": res}, sort_keys=True, default=str).encode()
-            ).hexdigest()
+            # SEQUENCE bump
+            fingerprint = hashlib.sha256(json.dumps({"fx": fx, "res": res}, sort_keys=True, default=str).encode()).hexdigest()
             seq = state.get(uid, {}).get("seq", 0)
-            last = state.get(uid, {}).get("fp")
-            if last and last != fingerprint:
+            if state.get(uid, {}).get("fp") not in (None, fingerprint):
                 seq += 1
             state[uid] = {"seq": seq, "fp": fingerprint}
 
-            now = datetime.utcnow().replace(tzinfo=timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+            now = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
             lines.extend([
                 "BEGIN:VEVENT",
                 f"UID:{uid}",
@@ -227,19 +195,15 @@ def main():
                 "END:VEVENT",
             ])
             built += 1
-
         except Exception as e:
-            log(f"[WARN] Skipping fixture due to parse/match error: {e}")
+            log(f"[WARN] Skipping fixture due to error: {e}")
 
     lines.append("END:VCALENDAR")
-
     with open(OUTPUT, "w", newline="") as f:
         f.write(crlf_join(lines))
     save_state(state)
 
     log(f"[INFO] Wrote {OUTPUT} with {built} events.")
-    if built == 0:
-        log("[WARN] 0 events written — check payload keys and URLs.")
 
 if __name__ == "__main__":
     main()
