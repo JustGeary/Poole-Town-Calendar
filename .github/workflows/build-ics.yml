@@ -15,7 +15,6 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,7 +27,7 @@ jobs:
           python-version: "3.11"
 
       - name: Build ICS
-        run: python generate_calendar.py
+        run: python scripts/build_poole_u18_ics.py
 
       - name: Commit and push updated files
         run: |
