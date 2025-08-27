@@ -1,14 +1,41 @@
 {
   "ptfc-u18-20250907T130000Z-h-hamworthy-recreation-u18@poole-town": {
     "fp": "84678f7eca2d7b4163d7838c2e4c7bfcfa2d2bff62e3336f31ae39b96643aea9",
-    "seq": 1
+    "seq": 1,
+    "snapshot": {
+      "as": null,
+      "away": "Hamworthy Recreation U18",
+      "comp": "U18 Division 1",
+      "home": "Poole Town FC Wessex U18 Colts",
+      "hs": null,
+      "ko": "2025-09-07T13:00:00Z",
+      "venue": "Poole Town FC Wessex U18 Colts"
+    }
   },
   "ptfc-u18-20250921T130000Z-a-blandford-united-youth-u18@poole-town": {
     "fp": "695c8854b60520617d7aec110253142f672198c8ffa347e9a872ffe7c53654be",
-    "seq": 1
+    "seq": 1,
+    "snapshot": {
+      "as": null,
+      "away": "Poole Town FC Wessex U18 Colts",
+      "comp": "U18 Division 1",
+      "home": "Blandford United Youth U18",
+      "hs": null,
+      "ko": "2025-09-21T13:00:00Z",
+      "venue": "Blandford United Youth U18"
+    }
   },
   "ptfc-u18-20250928T130000Z-h-portland-united-u18@poole-town": {
     "fp": "25dc46c8f6f83b8c7f461ba06f3e8478b3052e03ab6d93aec6bb175ecf42ee7a",
-    "seq": 1
+    "seq": 1,
+    "snapshot": {
+      "as": null,
+      "away": "Portland United U18",
+      "comp": "U18 Division 1",
+      "home": "Poole Town FC Wessex U18 Colts",
+      "hs": null,
+      "ko": "2025-09-28T13:00:00Z",
+      "venue": "Poole Town FC Wessex U18 Colts"
+    }
   }
 }

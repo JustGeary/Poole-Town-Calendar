@@ -8,8 +8,8 @@ X-LEAGUE-TABLE:https://tinyurl.com/2p3zzska
 X-LEAGUE-FIXTURES:https://tinyurl.com/bdhdmzcn
 X-LEAGUE-RESULTS:https://tinyurl.com/bs6ppntx
 BEGIN:VEVENT
-UID:ptfc-u18-20250907T150000Z-h-hamworthy-recreation-u18@poole-town
-DTSTAMP:20250827T110453Z
+UID:ptfc-u18-20250907T130000Z-h-hamworthy-recreation-u18@poole-town
+DTSTAMP:20250827T120257Z
 DTSTART:20250907T130000Z
 DTEND:20250907T150000Z
 SEQUENCE:1
@@ -18,8 +18,18 @@ LOCATION:Poole Town FC Wessex U18 Colts
 DESCRIPTION:Poole Town FC Wessex U18 Colts vs Hamworthy Recreation U18\nCompetition: U18 Division 1\nVenue: Poole Town FC Wessex U18 Colts\nPTYFC Res/Fix: https://tinyurl.com/3rcea6d6\nLeague Table: https://tinyurl.com/2p3zzska\nLeague Fixtures: https://tinyurl.com/bdhdmzcn\nLeague Results: https://tinyurl.com/bs6ppntx
 END:VEVENT
 BEGIN:VEVENT
+UID:ptfc-u18-20250921T130000Z-a-blandford-united-youth-u18@poole-town
+DTSTAMP:20250827T120257Z
+DTSTART:20250921T130000Z
+DTEND:20250921T150000Z
+SEQUENCE:1
+SUMMARY:Blandford United Youth U18 vs Poole Town FC Wessex U18 Colts
+LOCATION:Blandford United Youth U18
+DESCRIPTION:Blandford United Youth U18 vs Poole Town FC Wessex U18 Colts\nCompetition: U18 Division 1\nVenue: Blandford United Youth U18\nPTYFC Res/Fix: https://tinyurl.com/3rcea6d6\nLeague Table: https://tinyurl.com/2p3zzska\nLeague Fixtures: https://tinyurl.com/bdhdmzcn\nLeague Results: https://tinyurl.com/bs6ppntx
+END:VEVENT
+BEGIN:VEVENT
 UID:ptfc-u18-20250928T130000Z-h-portland-united-u18@poole-town
-DTSTAMP:20250827T110453Z
+DTSTAMP:20250827T120257Z
 DTSTART:20250928T130000Z
 DTEND:20250928T150000Z
 SEQUENCE:1
@@ -28,4 +38,3 @@ LOCATION:Poole Town FC Wessex U18 Colts
 DESCRIPTION:Poole Town FC Wessex U18 Colts vs Portland United U18\nCompetition: U18 Division 1\nVenue: Poole Town FC Wessex U18 Colts\nPTYFC Res/Fix: https://tinyurl.com/3rcea6d6\nLeague Table: https://tinyurl.com/2p3zzska\nLeague Fixtures: https://tinyurl.com/bdhdmzcn\nLeague Results: https://tinyurl.com/bs6ppntx
 END:VEVENT
 END:VCALENDAR
-
