@@ -1,4 +1,4 @@
-name: Update Calendar
+name: Build ICS
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: update-calendar
+  group: build-ics
   cancel-in-progress: true
 
 jobs:
@@ -43,26 +43,26 @@ jobs:
             git push
           fi
 
+      # Telegram: send a message ONLY if notify.txt exists and secrets are set
+      - name: Send Telegram alert if changes
+        if: success()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -s notify.txt ] && [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            echo "Sending Telegram notification…"
+            TEXT="$(cat notify.txt)"
+            curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+              --data-urlencode "text=${TEXT}" \
+              --data-urlencode "parse_mode=HTML" \
+              > /dev/null
+          else
+            echo "No notification to send or Telegram secrets not set."
+          fi
 
-       - name: Send Telegram alert if changes
-         if: success()
-         env:
-           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-         run: |
-           if [ -s notify.txt ] && [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
-             echo "Sending Telegram notification…"
-             TEXT="$(cat notify.txt)"
-             curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-               --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
-               --data-urlencode "text=${TEXT}" \
-               --data-urlencode "parse_mode=HTML" \
-               > /dev/null
-           else
-             echo "No notification to send or Telegram secrets not set."
-           fi
-      
-       - name: Clean up notify.txt
-         if: always()
-         run: |
-           if [ -f notify.txt ]; then rm notify.txt; fi
+      - name: Clean up notify.txt
+        if: always()
+        run: |
+          if [ -f notify.txt ]; then rm notify.txt; fi
