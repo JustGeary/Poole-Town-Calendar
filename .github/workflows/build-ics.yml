@@ -1,0 +1,31 @@
+name: Build Poole U18 ICS
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "13 5 * * *"  # 05:13 UTC daily (06:13 BST in summer)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build ICS from FullTimeAPI
+        run: |
+          python scripts/build_poole_u18_ics.py
+
+      - name: Commit changes
+        run: |
+          git config user.name "GH Action"
+          git config user.email "action@users.noreply.github.com"
+          git add poole_town_u18_colts_fixtures.ics .state_poole_u18.json
+          git diff --staged --quiet || git commit -m "Update ICS from FullTimeAPI"
+
+      - name: Push
+        run: git push
