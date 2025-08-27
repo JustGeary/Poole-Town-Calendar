@@ -1,31 +1,44 @@
-name: Build Poole U18 ICS
+name: Update Calendar
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "7 */6 * * *"   # every 6 hours at :07 past (00:07, 06:07, 12:07, 18:07 UTC)
+    - cron: "7 */6 * * *"  # every 6 hours at :07 past (UTC)
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-calendar
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Build ICS from FullTimeAPI
-        run: |
-          python scripts/build_poole_u18_ics.py
+      - name: Build ICS
+        run: python generate_calendar.py
 
-      - name: Commit changes
+      - name: Commit and push updated files
         run: |
-          git config user.name "GH Action"
-          git config user.email "action@users.noreply.github.com"
+          set -e
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
           git add poole_town_u18_colts_fixtures.ics .state_poole_u18.json
-          git diff --staged --quiet || git commit -m "Update ICS from FullTimeAPI"
-
-      - name: Push
-        run: git push
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Update ICS from FullTimeAPI"
+            git push
+          fi
