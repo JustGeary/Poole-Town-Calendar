@@ -3,4 +3,34 @@ VERSION:2.0
 PRODID:-//PooleTown//U18 Fixtures via FullTimeAPI//EN
 CALSCALE:GREGORIAN
 METHOD:PUBLISH
+BEGIN:VEVENT
+UID:ptfc-u18-20250907T130000Z-h-hamworthy-recreation-u18@poole-town
+DTSTAMP:20250827T075910Z
+DTSTART:20250907T130000Z
+DTEND:20250907T150000Z
+SEQUENCE:0
+SUMMARY:Poole Town FC Wessex U18 Colts vs Hamworthy Recreation U18
+LOCATION:Poole Town FC Wessex U18 Colts
+DESCRIPTION:Poole Town FC Wessex U18 Colts vs Hamworthy Recreation U18\nCompetition: U18 Division 1\nVenue: Poole Town FC Wessex U18 Colts
+END:VEVENT
+BEGIN:VEVENT
+UID:ptfc-u18-20250921T130000Z-a-blandford-united-youth-u18@poole-town
+DTSTAMP:20250827T075910Z
+DTSTART:20250921T130000Z
+DTEND:20250921T150000Z
+SEQUENCE:0
+SUMMARY:Blandford United Youth U18 vs Poole Town FC Wessex U18 Colts
+LOCATION:Blandford United Youth U18
+DESCRIPTION:Blandford United Youth U18 vs Poole Town FC Wessex U18 Colts\nCompetition: U18 Division 1\nVenue: Blandford United Youth U18
+END:VEVENT
+BEGIN:VEVENT
+UID:ptfc-u18-20250928T130000Z-h-portland-united-u18@poole-town
+DTSTAMP:20250827T075910Z
+DTSTART:20250928T130000Z
+DTEND:20250928T150000Z
+SEQUENCE:0
+SUMMARY:Poole Town FC Wessex U18 Colts vs Portland United U18
+LOCATION:Poole Town FC Wessex U18 Colts
+DESCRIPTION:Poole Town FC Wessex U18 Colts vs Portland United U18\nCompetition: U18 Division 1\nVenue: Poole Town FC Wessex U18 Colts
+END:VEVENT
 END:VCALENDAR
