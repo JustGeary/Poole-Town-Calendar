@@ -3,7 +3,7 @@ name: Build Poole U18 ICS
 on:
   workflow_dispatch:
   schedule:
-    - cron: "13 5 * * *"  # 05:13 UTC daily (06:13 BST in summer)
+    - cron: "7 */6 * * *"   # every 6 hours at :07 past (00:07, 06:07, 12:07, 18:07 UTC)
 
 jobs:
   build:
