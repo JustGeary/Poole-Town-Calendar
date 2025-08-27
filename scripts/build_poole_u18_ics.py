@@ -4,6 +4,7 @@
 # - Merges results into SUMMARY/DESCRIPTION when available
 # - Writes CRLF line endings in binary (Outlook/Google/Apple friendly)
 # - Skips writing if the API returns 0 fixtures or if 0 events are built (keeps last good file)
+# - Tracks changes and writes notify.txt (optional Telegram step in workflow can send it)
 
 import json
 import os
@@ -12,6 +13,7 @@ import sys
 import time
 import hashlib
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
 
@@ -21,7 +23,8 @@ RESULTS_URL  = "https://faapi.jwhsolutions.co.uk/api/Results/938310682?teamName=
 
 TEAM_NAME = "Poole Town FC Wessex U18 Colts"
 OUTPUT    = "poole_town_u18_colts_fixtures.ics"
-STATE     = ".state_poole_u18.json"  # stores per-UID seq + fingerprint
+STATE     = ".state_poole_u18.json"  # stores per-UID seq + fingerprint + snapshot
+NOTIFY_FILE = "notify.txt"           # human-readable change log (optional Telegram)
 
 # Handy links (TinyURL versions, shortened labels)
 LINKS = [
@@ -54,6 +57,14 @@ def clean_team(s: str) -> str:
     s = s.replace("u18s", "u18")
     s = re.sub(r"\s+", " ", s).strip()
     return s
+
+def fmt_local(dt_utc: datetime) -> str:
+    """Pretty Europe/London time for notifications."""
+    return dt_utc.astimezone(ZoneInfo("Europe/London")).strftime("%a %d %b %Y %H:%M")
+
+def tg_escape(s: str) -> str:
+    """Minimal HTML escaping for Telegram (if you enable the step)."""
+    return (s or "").replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
 
 def fetch_json(url: str, timeout=15, retries=3, backoff=2.0):
     """GET JSON with small retry/backoff; robust to list-or-dict shapes."""
@@ -109,7 +120,6 @@ def parse_fixture_dt_local_to_utc(local_dt_str: str) -> datetime:
         raise ValueError("fixtureDateTime missing")
     for fmt in ("%d/%m/%y %H:%M", "%d/%m/%Y %H:%M"):
         try:
-            from zoneinfo import ZoneInfo
             dt_local = datetime.strptime(local_dt_str, fmt)
             return dt_local.replace(tzinfo=ZoneInfo("Europe/London")).astimezone(timezone.utc)
         except Exception:
@@ -175,6 +185,9 @@ def main():
     fixtures.sort(key=safe_key)
 
     state = load_state()
+    prev_uids = set(state.keys())
+    seen_uids = set()
+    added, updated, removed = [], [], []
 
     lines = [
         "BEGIN:VCALENDAR",
@@ -201,12 +214,17 @@ def main():
             start_utc = parse_fixture_dt_local_to_utc(f_date_local)
             end_utc   = start_utc + EVENT_DURATION
             uid       = make_uid(start_utc, home, away)
+            seen_uids.add(uid)
+
             us_home   = TEAM_NAME.lower() in home.lower()
             opponent  = away if us_home else home
 
+            # Result merge
             r = res_map.get(key_from_date_and_teams(f_date_local, home, away))
-            if r and (r.get("hs") is not None and r.get("as") is not None):
-                hs, as_ = str(r["hs"]).strip(), str(r["as"]).strip()
+            hs = str(r["hs"]).strip() if r and r.get("hs") is not None else None
+            as_ = str(r["as"]).strip() if r and r.get("as") is not None else None
+
+            if hs is not None and as_ is not None:
                 summary = f"{TEAM_NAME} {hs}–{as_} {opponent}" if us_home else f"{opponent} {hs}–{as_} {TEAM_NAME}"
             else:
                 summary = f"{TEAM_NAME} vs {opponent}" if us_home else f"{opponent} vs {TEAM_NAME}"
@@ -214,16 +232,44 @@ def main():
             desc_bits = [f"{home} vs {away}"]
             if comp:  desc_bits.append(f"Competition: {comp}")
             if venue: desc_bits.append(f"Venue: {venue}")
-            if r and (r.get("hs") is not None and r.get("as") is not None):
-                desc_bits.append(f"Result: {home} {r['hs']}–{r['as']} {away}")
+            if hs is not None and as_ is not None:
+                desc_bits.append(f"Result: {home} {hs}–{as_} {away}")
             desc_bits.extend(LINKS)
             description = "\\n".join(esc(x) for x in desc_bits)
 
+            # Change detection snapshot
+            snapshot = {
+                "ko": start_utc.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "home": home, "away": away,
+                "venue": venue, "comp": comp,
+                "hs": hs, "as": as_,
+            }
+            prev = state.get(uid, {}).get("snapshot")
+
+            if prev is None:
+                added.append(f"• {fmt_local(start_utc)} — {home} vs {away} ({venue})")
+            else:
+                deltas = []
+                if prev.get("ko") != snapshot["ko"]:
+                    deltas.append("time")
+                if prev.get("venue") != venue:
+                    deltas.append("venue")
+                if prev.get("comp") != comp:
+                    deltas.append("competition")
+                if (prev.get("hs"), prev.get("as")) != (hs, as_):
+                    if hs is not None and as_ is not None:
+                        deltas.append(f"score {home} {hs}–{as_} {away}")
+                    else:
+                        deltas.append("score cleared")
+                if deltas:
+                    updated.append(f"• {fmt_local(start_utc)} — {home} vs {away} ({', '.join(deltas)})")
+
+            # SEQUENCE bump if fixture+result composite changed
             fingerprint = hashlib.sha256(json.dumps({"fx": fx, "res": r}, sort_keys=True, default=str).encode()).hexdigest()
             seq = state.get(uid, {}).get("seq", 0)
             if state.get(uid, {}).get("fp") not in (None, fingerprint):
                 seq += 1
-            state[uid] = {"seq": seq, "fp": fingerprint}
+            state[uid] = {"seq": seq, "fp": fingerprint, "snapshot": snapshot}
 
             now = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
             lines.extend([
@@ -243,19 +289,42 @@ def main():
             log(f"[WARN] Skipping fixture due to error: {e}")
             log("[WARN] Offending item was:\n" + json.dumps(fx, indent=2, ensure_ascii=False))
 
+    # Removed fixtures (were in state, not seen now)
+    for uid in sorted(prev_uids - seen_uids):
+        prev = state.get(uid, {}).get("snapshot", {})
+        try:
+            dt = datetime.strptime(prev.get("ko",""), "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+            removed.append(f"• {fmt_local(dt)} — {prev.get('home','?')} vs {prev.get('away','?')}")
+        except Exception:
+            removed.append(f"• {prev.get('home','?')} vs {prev.get('away','?')}")
+
     # ⛔ Nothing to write? Keep previous file.
     if built == 0:
         log("[WARN] Built 0 events; leaving existing ICS untouched.")
         return
 
+    # Write ICS
     lines.append("END:VCALENDAR")
-
-    # Write with CRLF in binary (Linux runner safe)
     with open(OUTPUT, "wb") as f:
         f.write(crlf_join(lines).encode("utf-8"))
-
     save_state(state)
     log(f"[INFO] Wrote {OUTPUT} with {built} events.")
+
+    # Write notify.txt if there are changes
+    notify_sections = []
+    if added:
+        notify_sections.append("<b>➕ Added fixtures</b>\n" + "\n".join(tg_escape(x) for x in added))
+    if updated:
+        notify_sections.append("<b>✏️ Updated fixtures</b>\n" + "\n".join(tg_escape(x) for x in updated))
+    if removed:
+        notify_sections.append("<b>❌ Removed fixtures</b>\n" + "\n".join(tg_escape(x) for x in removed))
+
+    if notify_sections:
+        with open(NOTIFY_FILE, "w", encoding="utf-8") as nf:
+            nf.write("\n\n".join(notify_sections))
+    else:
+        if os.path.exists(NOTIFY_FILE):
+            os.remove(NOTIFY_FILE)
 
 if __name__ == "__main__":
     main()
